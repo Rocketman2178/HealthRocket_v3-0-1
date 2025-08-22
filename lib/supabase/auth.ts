@@ -85,8 +85,10 @@ export async function signUp(
         })
 
       if (profileError) {
-        console.warn('Profile creation failed:', profileError.message)
-        // Don't fail signup if profile creation fails
+        return {
+          success: false,
+          error: `Profile creation failed: ${profileError.message}. Please ensure you have proper permissions or contact support.`
+        }
       }
     }
 
