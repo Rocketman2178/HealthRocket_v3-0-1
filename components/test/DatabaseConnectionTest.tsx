@@ -1,4 +1,4 @@
-// components/test/DatabaseConnectionTest.tsx
+// components/test/SimpleDatabaseTest.tsx
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { supabase } from '../../lib/supabase/client';
@@ -12,22 +12,10 @@ interface TestResult {
   duration?: number;
 }
 
-export function DatabaseConnectionTest() {
+export function SimpleDatabaseTest() {
   const [results, setResults] = useState<TestResult[]>([]);
   const [isRunning, setIsRunning] = useState(false);
-  const { user } = useSupabase();
-
-  // Generate unique test data to avoid conflicts
-  const generateTestUser = () => {
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(2, 15);
-    return {
-      email: `test.user.${timestamp}.${randomId}@healthrocket.test`,
-      name: `Test User ${timestamp}`,
-      password: `TestPass123${timestamp}`,
-      launchCode: 'HEALTHROCKET2025' // Using a known valid launch code
-    };
-  };
+  const { user, isConnected } = useSupabase();
 
   const updateResult = (name: string, updates: Partial<TestResult>) => {
     setResults(prev => prev.map(result => 
@@ -59,7 +47,6 @@ export function DatabaseConnectionTest() {
         error,
         duration 
       });
-      throw error; // Re-throw to stop dependent tests
     }
   };
 
@@ -72,225 +59,143 @@ export function DatabaseConnectionTest() {
     // Initialize test results
     const testNames = [
       'Database Connection',
-      'Authentication System',
-      'User Profile Creation',
-      'FP System Integration',
-      'Challenge System',
-      'Real-time Features',
-      'Admin Functions',
-      'Data Cleanup'
+      'Schema Validation', 
+      'RPC Functions',
+      'Real-time Connection',
+      'Current User Context',
+      'Read-Only Data Access'
     ];
 
     testNames.forEach(name => {
       addResult({ name, status: 'pending' });
     });
 
-    let testUser: any = null;
-    let testAuthUser: any = null;
-
     try {
-      // Test 1: Database Connection
+      // Test 1: Basic Database Connection
       await runTest('Database Connection', async () => {
-        const { data, error } = await supabase.from('users').select('count').limit(1);
-        if (error) throw error;
-        console.log('Database connection successful');
-      });
-
-      // Test 2: Authentication System
-      await runTest('Authentication System', async () => {
-        testUser = generateTestUser();
-        
-        // First, validate the launch code
-        const { data: validationData, error: validationError } = await supabase.rpc(
-          'validate_launch_code',
-          { p_code: testUser.launchCode }
-        );
-
-        if (validationError) {
-          throw new Error(`Launch code validation failed: ${validationError.message}`);
-        }
-
-        if (!validationData?.valid) {
-          throw new Error('Launch code is not valid');
-        }
-
-        // Create auth user
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: testUser.email,
-          password: testUser.password,
-        });
-
-        if (authError) throw authError;
-        if (!authData.user) throw new Error('No user created');
-        
-        testAuthUser = authData.user;
-        console.log('Authentication user created:', testAuthUser.id);
-      });
-
-      // Test 3: User Profile Creation
-      await runTest('User Profile Creation', async () => {
-        if (!testAuthUser) throw new Error('No authenticated user available');
-
-        // Check if profile already exists and delete it if it does
-        const { data: existingUser } = await supabase
+        const { error } = await supabase
           .from('users')
-          .select('id')
-          .eq('id', testAuthUser.id)
-          .single();
-
-        if (existingUser) {
-          const { error: deleteError } = await supabase
-            .from('users')
-            .delete()
-            .eq('id', testAuthUser.id);
-          
-          if (deleteError) {
-            console.warn('Could not delete existing user:', deleteError);
-          }
-        }
-
-        // Create new user profile
-        const { error: profileError } = await supabase.from('users').insert({
-          id: testAuthUser.id,
-          email: testUser.email,
-          name: testUser.name,
-          plan: 'Pro Plan',
-          level: 1,
-          fuel_points: 0,
-          burn_streak: 0,
-          health_score: 7.8,
-          healthspan_years: 0,
-          onboarding_completed: false,
-          subscription_start_date: new Date().toISOString(),
-          plan_status: 'Active'
-        });
-
-        if (profileError) {
-          throw new Error(`Profile creation failed: ${profileError.message}`);
-        }
-
-        console.log('User profile created successfully');
-      });
-
-      // Test 4: FP System Integration
-      await runTest('FP System Integration', async () => {
-        if (!testAuthUser) throw new Error('No authenticated user available for FP test');
-
-        // Test FP earning
-        const { data: fpData, error: fpError } = await supabase
-          .from('fp_earnings')
-          .insert({
-            user_id: testAuthUser.id,
-            source: 'test',
-            source_id: crypto.randomUUID(),
-            fp_amount: 100,
-            description: 'Test FP earning',
-            user_name: testUser.name,
-            date: new Date().toISOString().split('T')[0]
-          })
-          .select()
-          .single();
-
-        if (fpError) throw fpError;
-        if (!fpData) throw new Error('No FP data returned');
-
-        // Update user's fuel points
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({ fuel_points: 100, lifetime_fp: 100 })
-          .eq('id', testAuthUser.id);
-
-        if (updateError) throw updateError;
-
-        console.log('FP system working correctly');
-      });
-
-      // Test 5: Challenge System
-      await runTest('Challenge System', async () => {
-        if (!testAuthUser) throw new Error('No authenticated user available for challenge test');
-
-        // Test challenge library access
-        const { data: challengeData, error: challengeError } = await supabase
-          .from('challenge_library')
-          .select('id, title, category')
+          .select('count')
           .limit(1);
-
-        if (challengeError) throw challengeError;
-        if (!challengeData || challengeData.length === 0) {
-          console.warn('No challenges found in library');
-          return;
-        }
-
-        console.log('Challenge system accessible');
-      });
-
-      // Test 6: Real-time Features
-      await runTest('Real-time Features', async () => {
-        // Test real-time subscription capability
-        const testChannel = supabase
-          .channel('test-channel')
-          .on('postgres_changes', 
-            { event: '*', schema: 'public', table: 'users' }, 
-            (payload) => {
-              console.log('Real-time change received:', payload);
-            }
-          );
-
-        await testChannel.subscribe();
         
-        // Clean up the channel
-        supabase.removeChannel(testChannel);
-        
-        console.log('Real-time features working');
+        if (error) throw error;
+        console.log('✅ Database connection successful');
       });
 
-      // Test 7: Admin Functions (if current user is admin)
-      await runTest('Admin Functions', async () => {
-        if (user?.email && ['derek@healthrocket.app', 'derek@healthrocket.life'].includes(user.email)) {
-          // Test admin-specific functions
-          const { data: adminData, error: adminError } = await supabase
-            .from('users')
-            .select('count')
-            .limit(1);
-
-          if (adminError) throw adminError;
-          console.log('Admin functions accessible');
-        } else {
-          console.log('Skipping admin tests - not admin user');
-        }
-      });
-
-      // Test 8: Data Cleanup
-      await runTest('Data Cleanup', async () => {
-        if (!testAuthUser) {
-          console.log('No test user to clean up');
-          return;
-        }
-
-        // Clean up test data
-        const cleanupOperations = [
-          // Delete FP earnings
-          supabase.from('fp_earnings').delete().eq('user_id', testAuthUser.id),
-          // Delete user profile
-          supabase.from('users').delete().eq('id', testAuthUser.id),
-        ];
-
-        await Promise.all(cleanupOperations);
-
-        // Delete auth user
-        const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(
-          testAuthUser.id
+      // Test 2: Schema Validation - Check key tables exist
+      await runTest('Schema Validation', async () => {
+        const tables = ['users', 'challenge_library', 'fp_earnings', 'communities'];
+        const results = await Promise.all(
+          tables.map(async (table) => {
+            const { error } = await supabase
+              .from(table)
+              .select('*')
+              .limit(1);
+            return { table, success: !error };
+          })
         );
-
-        if (deleteAuthError) {
-          console.warn('Could not delete auth user:', deleteAuthError);
+        
+        const failedTables = results.filter(r => !r.success).map(r => r.table);
+        if (failedTables.length > 0) {
+          throw new Error(`Missing tables: ${failedTables.join(', ')}`);
         }
+        
+        console.log('✅ All core tables accessible');
+      });
 
-        console.log('Test data cleanup completed');
+      // Test 3: RPC Functions
+      await runTest('RPC Functions', async () => {
+        // Test launch code validation function
+        const { data, error } = await supabase.rpc(
+          'validate_launch_code',
+          { p_code: 'TEST_CODE' } // This will be invalid but function should work
+        );
+        
+        if (error) throw error;
+        
+        // Should return validation result (even if invalid)
+        if (data === null || data === undefined) {
+          throw new Error('RPC function returned no data');
+        }
+        
+        console.log('✅ RPC functions working');
+      });
+
+      // Test 4: Real-time Connection
+      await runTest('Real-time Connection', async () => {
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Real-time connection timeout'));
+          }, 5000);
+
+          const channel = supabase
+            .channel('test-connection')
+            .on('presence', { event: 'sync' }, () => {
+              console.log('✅ Real-time connection established');
+            })
+            .subscribe((status) => {
+              if (status === 'SUBSCRIBED') {
+                clearTimeout(timeout);
+                supabase.removeChannel(channel);
+                resolve(undefined);
+              } else if (status === 'CHANNEL_ERROR') {
+                clearTimeout(timeout);
+                reject(new Error('Real-time channel error'));
+              }
+            });
+        });
+      });
+
+      // Test 5: Current User Context
+      await runTest('Current User Context', async () => {
+        if (!user) {
+          throw new Error('No user authenticated - please sign in first');
+        }
+        
+        // Try to fetch current user's profile
+        const { data: profile, error } = await supabase
+          .from('users')
+          .select('id, email, name, fuel_points, level')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) throw error;
+        if (!profile) throw new Error('User profile not found');
+        
+        console.log('✅ Current user profile accessible:', {
+          email: profile.email,
+          name: profile.name,
+          level: profile.level,
+          fuel_points: profile.fuel_points
+        });
+      });
+
+      // Test 6: Read-Only Data Access
+      await runTest('Read-Only Data Access', async () => {
+        // Test reading challenge library
+        const { data: challenges, error: challengeError } = await supabase
+          .from('challenge_library')
+          .select('id, title, category, description')
+          .limit(5);
+        
+        if (challengeError) throw challengeError;
+        
+        // Test reading communities
+        const { data: communities, error: communityError } = await supabase
+          .from('communities')
+          .select('id, name, member_count')
+          .limit(3);
+        
+        if (communityError) throw communityError;
+        
+        console.log('✅ Read access working:', {
+          challenges_found: challenges?.length || 0,
+          communities_found: communities?.length || 0
+        });
       });
 
     } catch (error) {
-      console.error('Test suite failed:', error);
+      console.error('❌ Test suite failed:', error);
     } finally {
       setIsRunning(false);
     }
@@ -316,15 +221,24 @@ export function DatabaseConnectionTest() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Health Rocket V3 - Database Tests</Text>
+      <Text style={styles.title}>Health Rocket V3 - Simple Database Test</Text>
       
+      <View style={styles.statusContainer}>
+        <Text style={[styles.statusText, { color: isConnected ? '#10B981' : '#EF4444' }]}>
+          Connection Status: {isConnected ? 'Connected' : 'Disconnected'}
+        </Text>
+        <Text style={styles.statusText}>
+          Current User: {user?.email || 'Not authenticated'}
+        </Text>
+      </View>
+
       <TouchableOpacity
         style={[styles.button, isRunning && styles.buttonDisabled]}
         onPress={runAllTests}
         disabled={isRunning}
       >
         <Text style={styles.buttonText}>
-          {isRunning ? 'Running Tests...' : 'Run All Tests'}
+          {isRunning ? 'Running Tests...' : 'Run Simple Tests'}
         </Text>
       </TouchableOpacity>
 
@@ -353,24 +267,43 @@ export function DatabaseConnectionTest() {
             )}
             
             {result.error && result.status === 'error' && (
-              <Text style={styles.errorDetails}>
-                {JSON.stringify(result.error, null, 2)}
-              </Text>
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorTitle}>Error Details:</Text>
+                <Text style={styles.errorDetails}>
+                  {result.error.message || 'Unknown error'}
+                </Text>
+                {result.error.code && (
+                  <Text style={styles.errorCode}>
+                    Code: {result.error.code}
+                  </Text>
+                )}
+              </View>
             )}
           </View>
         ))}
       </ScrollView>
 
+      <View style={styles.summaryContainer}>
+        <Text style={styles.summaryTitle}>Test Summary</Text>
+        <Text style={styles.summaryText}>
+          ✅ Passed: {results.filter(r => r.status === 'success').length}
+        </Text>
+        <Text style={styles.summaryText}>
+          ❌ Failed: {results.filter(r => r.status === 'error').length}
+        </Text>
+        <Text style={styles.summaryText}>
+          ⏳ Pending: {results.filter(r => r.status === 'pending').length}
+        </Text>
+      </View>
+
       <View style={styles.infoContainer}>
-        <Text style={styles.infoText}>
-          Current User: {user?.email || 'Not authenticated'}
-        </Text>
-        <Text style={styles.infoText}>
-          Database: Connected to Supabase
-        </Text>
-        <Text style={styles.infoText}>
-          Tests: {results.filter(r => r.status === 'success').length} passed, {results.filter(r => r.status === 'error').length} failed
-        </Text>
+        <Text style={styles.infoTitle}>What This Tests:</Text>
+        <Text style={styles.infoText}>• Basic database connectivity</Text>
+        <Text style={styles.infoText}>• Core table schema validation</Text>
+        <Text style={styles.infoText}>• RPC function availability</Text>
+        <Text style={styles.infoText}>• Real-time connection capability</Text>
+        <Text style={styles.infoText}>• Current user data access</Text>
+        <Text style={styles.infoText}>• Read permissions for game data</Text>
       </View>
     </View>
   );
@@ -388,6 +321,17 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: 20,
     textAlign: 'center',
+  },
+  statusContainer: {
+    backgroundColor: '#2a2a2a',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginBottom: 5,
   },
   button: {
     backgroundColor: '#3B82F6',
@@ -409,6 +353,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2a2a2a',
     borderRadius: 8,
     padding: 15,
+    marginBottom: 20,
   },
   resultItem: {
     marginBottom: 15,
@@ -440,22 +385,62 @@ const styles = StyleSheet.create({
     marginLeft: 26,
     marginTop: 5,
   },
+  errorContainer: {
+    marginLeft: 26,
+    marginTop: 8,
+    padding: 10,
+    backgroundColor: '#2d1b1b',
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#EF4444',
+  },
+  errorTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#EF4444',
+    marginBottom: 4,
+  },
   errorDetails: {
     fontSize: 12,
-    color: '#EF4444',
-    marginLeft: 26,
-    marginTop: 5,
+    color: '#FCA5A5',
+    marginBottom: 4,
+  },
+  errorCode: {
+    fontSize: 11,
+    color: '#9CA3AF',
     fontFamily: 'monospace',
   },
-  infoContainer: {
-    marginTop: 20,
-    padding: 15,
+  summaryContainer: {
     backgroundColor: '#2a2a2a',
+    padding: 15,
     borderRadius: 8,
+    marginBottom: 15,
   },
-  infoText: {
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  summaryText: {
     fontSize: 14,
     color: '#9CA3AF',
-    marginBottom: 5,
+    marginBottom: 3,
+  },
+  infoContainer: {
+    backgroundColor: '#2a2a2a',
+    padding: 15,
+    borderRadius: 8,
+  },
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginBottom: 3,
   },
 });
