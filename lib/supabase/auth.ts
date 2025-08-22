@@ -47,6 +47,49 @@ export async function signUp(
       }
     }
 
+    // Create user profile in public.users table
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from('users')
+        .insert({
+          id: data.user.id,
+          email: data.user.email!,
+          user_name: userName,
+          fuel_points: 0,
+          level: 1,
+          burn_streak_days: 0,
+          longest_burn_streak: 0,
+          lifetime_fp_earned: 0,
+          health_score: 7.8,
+          healthspan_years: 0.0,
+          expected_lifespan: 85,
+          plan_name: 'Preview Access',
+          plan_status: 'Trial',
+          contest_credits: 2,
+          biometric_enabled: false,
+          timezone: 'UTC',
+          notification_preferences: {
+            sms: false,
+            push: true,
+            email: false,
+            contests: true,
+            marketing: false,
+            challenges: true,
+            achievements: true
+          },
+          onboarding_completed: false,
+          onboarding_step: 'welcome',
+          is_admin: false,
+          is_active: true,
+          last_active_at: new Date().toISOString()
+        })
+
+      if (profileError) {
+        console.warn('Profile creation failed:', profileError.message)
+        // Don't fail signup if profile creation fails
+      }
+    }
+
     // If auth user created successfully and has launch code, use it
     if (data.user && launchCode?.trim()) {
       await supabase.rpc('use_launch_code', {
