@@ -178,12 +178,13 @@ export default function Dashboard() {
                 <Text style={styles.activityTime}>3 days ago</Text>
               </View>
               <Text style={styles.activityReward}>Quest</Text>
-        <View style={styles.bottomPadding} />
-      </ScrollView>
-    </SafeAreaView>
             </View>
           </View>
         </View>
+
+        <View style={styles.bottomPadding} />
+      </ScrollView>
+    </SafeAreaView>
   )
 }
 const styles = StyleSheet.create({
