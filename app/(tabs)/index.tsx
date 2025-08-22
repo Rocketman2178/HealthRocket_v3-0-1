@@ -142,8 +142,6 @@ export default function Dashboard() {
             </View>
           </ScrollView>
         </View>
-  )
-}
 
         {/* Recent Activity */}
         <View style={styles.section}>
