@@ -7,20 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import {
-  MapPin,
-  CheckCircle,
-  XCircle,
-  Clock,
-  User,
-  Zap,
-  Target,
-  Trophy,
-  Calendar,
-  MessageCircle,
-  Award,
-  Activity,
-} from 'lucide-react-native';
+import { MapPin, CircleCheck as CheckCircle, Circle as XCircle, Clock, User, Zap, Target, Trophy, Calendar, MessageCircle, Award, Activity } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase/client';
 import { signUp, signIn } from '@/lib/supabase/auth';
 

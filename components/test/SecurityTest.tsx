@@ -7,16 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import {
-  Shield,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Lock,
-  Unlock,
-  Eye,
-  EyeOff,
-} from 'lucide-react-native';
+import { Shield, CircleCheck as CheckCircle, Circle as XCircle, Clock, Lock, Clock as Unlock, Eye, EyeOff } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/supabase/auth';
 import { TEST_USERS } from '@/utils/testUsers';

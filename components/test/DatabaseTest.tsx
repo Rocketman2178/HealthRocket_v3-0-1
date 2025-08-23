@@ -7,17 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import {
-  Database,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Zap,
-  Target,
-  Trophy,
-  Users,
-  Activity,
-} from 'lucide-react-native';
+import { Database, CircleCheck as CheckCircle, Circle as XCircle, Clock, Zap, Target, Trophy, Users, Activity } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/supabase/auth';
 
