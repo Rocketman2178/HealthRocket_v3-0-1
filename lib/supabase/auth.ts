@@ -194,21 +194,31 @@ export async function getCurrentUser() {
 export function useAuth() {
   const [user, setUser] = React.useState<any>(null)
   const [loading, setLoading] = React.useState(true)
+  const isMountedRef = React.useRef(true)
 
   React.useEffect(() => {
+    isMountedRef.current = true
+    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
+      if (isMountedRef.current) {
+        setUser(session?.user ?? null)
+        setLoading(false)
+      }
     })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
+      if (isMountedRef.current) {
+        setUser(session?.user ?? null)
+        setLoading(false)
+      }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      isMountedRef.current = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   return { user, loading }
