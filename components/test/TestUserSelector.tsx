@@ -38,8 +38,7 @@ export default function TestUserSelector({ onUserChange }: TestUserSelectorProps
   const loadDatabaseUsers = async () => {
     setLoadingUsers(true);
     try {
-      // Note: This will only work if RLS allows viewing other users
-      // You may need to temporarily disable RLS or use a service role key
+      // First try to get all users (may be restricted by RLS)
       const { data: users, error } = await supabase
         .from('users')
         .select('id, email, user_name, is_admin')
@@ -47,26 +46,46 @@ export default function TestUserSelector({ onUserChange }: TestUserSelectorProps
         .limit(10);
 
       if (error) {
-        console.error('Error loading users:', error);
-        Alert.alert('Error', 'Could not load users from database. Using current user only.');
-        // If we can't load all users, at least show the current user
-        if (user) {
-          const { data: currentUser, error: currentUserError } = await supabase
-            .from('users')
-            .select('id, email, user_name, is_admin')
-            .eq('id', user.id)
-            .single();
-          
-          if (currentUser && !currentUserError) {
-            setDatabaseUsers([currentUser]);
+        console.log('RLS restricting user access, trying alternative approach...');
+        
+        // Try using RPC function to get users (bypasses RLS if function allows it)
+        const { data: rpcUsers, error: rpcError } = await supabase
+          .rpc('get_test_users');
+        
+        if (rpcError || !rpcUsers) {
+          console.log('RPC approach failed, using current user only');
+          // Fallback: show only current user
+          if (user) {
+            const { data: currentUser, error: currentUserError } = await supabase
+              .from('users')
+              .select('id, email, user_name, is_admin')
+              .eq('id', user.id)
+              .single();
+            
+            if (currentUser && !currentUserError) {
+              setDatabaseUsers([currentUser]);
+            }
           }
+        } else {
+          setDatabaseUsers(rpcUsers);
         }
       } else {
         setDatabaseUsers(users || []);
       }
     } catch (error) {
       console.error('Error loading users:', error);
-      Alert.alert('Error', 'Failed to load users from database');
+      // Don't show alert, just log the error and show current user
+      if (user) {
+        const { data: currentUser, error: currentUserError } = await supabase
+          .from('users')
+          .select('id, email, user_name, is_admin')
+          .eq('id', user.id)
+          .single();
+        
+        if (currentUser && !currentUserError) {
+          setDatabaseUsers([currentUser]);
+        }
+      }
     } finally {
       setLoadingUsers(false);
     }
