@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { AlertTriangle, RefreshCw, MessageCircle, Wifi, WifiOff } from 'lucide-react-native';
+import { TriangleAlert as AlertTriangle, RefreshCw, MessageCircle, Wifi, WifiOff } from 'lucide-react-native';
 import NetInfo from '@react-native-community/netinfo';
 
 interface OnboardingErrorProps {

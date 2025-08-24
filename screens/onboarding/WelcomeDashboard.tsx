@@ -8,18 +8,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { 
-  Rocket, 
-  Target, 
-  Trophy, 
-  Calendar, 
-  Zap, 
-  Users, 
-  CheckCircle, 
-  ArrowRight,
-  Star,
-  Activity
-} from 'lucide-react-native';
+import { Rocket, Target, Trophy, Calendar, Zap, Users, CircleCheck as CheckCircle, ArrowRight, Star, Activity } from 'lucide-react-native';
 
 interface WelcomeDashboardProps {
   onComplete: () => void;

@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react-native';
+import { ArrowLeft, Eye, EyeOff, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from 'lucide-react-native';
 import AuthInput from '../../components/forms/AuthInput';
 import AuthButton from '../../components/forms/AuthButton';
 import LaunchCodeInput from '../../components/onboarding/LaunchCodeInput';
