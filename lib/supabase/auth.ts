@@ -33,6 +33,7 @@ export async function signUp(
       email,
       password,
       options: {
+        emailRedirectTo: window.location.origin,
         data: {
           user_name: userName,
           launch_code: launchCode
@@ -163,7 +164,7 @@ export async function signOut(): Promise<AuthResponse> {
 export async function resetPassword(email: string): Promise<AuthResponse> {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'healthrocket://reset-password'
+      redirectTo: `${window.location.origin}/reset-password`
     })
 
     if (error) {
