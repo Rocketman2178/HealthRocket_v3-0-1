@@ -16,8 +16,8 @@ interface QuickLoginFormProps {
 }
 
 export default function QuickLoginForm({ onLoginSuccess }: QuickLoginFormProps) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('clay@healthrocket.app');
+  const [password, setPassword] = useState('Rocketman0418!');
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 
