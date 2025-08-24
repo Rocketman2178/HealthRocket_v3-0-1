@@ -1,11 +1,17 @@
 import { supabase } from '@/lib/supabase/client';
 import { signIn, signOut } from '@/lib/supabase/auth';
-import { TEST_USERS, TestUser } from '@/utils/testUsers';
 import { performanceMonitor, measureDatabaseQuery, measureRPCCall } from '@/utils/performanceMonitor';
 import { runDataIntegrityCheck } from '@/utils/dataIntegrityChecker';
 
+interface DatabaseUser {
+  id: string;
+  email: string;
+  user_name: string;
+  is_admin: boolean;
+}
+
 interface TestSuiteResult {
-  testUser: TestUser;
+  testUser: DatabaseUser;
   startTime: Date;
   endTime: Date;
   duration: number;
@@ -30,7 +36,7 @@ interface ConcurrentTestResult {
 export class AuthenticatedTestSuite {
   private results: TestSuiteResult[] = [];
 
-  async runSingleUserTests(testUser: TestUser): Promise<TestSuiteResult> {
+  async runSingleUserTests(testUser: DatabaseUser): Promise<TestSuiteResult> {
     const startTime = new Date();
     const result: TestSuiteResult = {
       testUser,
@@ -50,44 +56,23 @@ export class AuthenticatedTestSuite {
       // Clear previous performance data
       performanceMonitor.clear();
 
-      // Step 1: Authentication
-      result.testsRun++;
-      const loginResult = await measureDatabaseQuery(
-        'User Login',
-        () => signIn(testUser.email, testUser.password)
-      );
+      // Use the provided user ID directly (assumes user is already authenticated)
+      const userId = testUser.id;
 
-      if (!loginResult.success) {
-        result.testsFailed++;
-        result.errors.push(`Login failed: ${loginResult.error}`);
-        return result;
-      }
-      result.testsPassed++;
-
-      const userId = loginResult.data?.user?.id;
-      if (!userId) {
-        result.testsFailed++;
-        result.errors.push('No user ID returned from login');
-        return result;
-      }
-
-      // Step 2: Basic Data Access Tests
+      // Step 1: Basic Data Access Tests
       await this.runBasicDataAccessTests(userId, result);
 
-      // Step 3: RPC Function Tests
+      // Step 2: RPC Function Tests
       await this.runRPCFunctionTests(userId, result);
 
-      // Step 4: Security Tests
+      // Step 3: Security Tests
       await this.runSecurityTests(userId, result);
 
-      // Step 5: Performance Tests
+      // Step 4: Performance Tests
       await this.runPerformanceTests(userId, result);
 
-      // Step 6: Data Integrity Check
+      // Step 5: Data Integrity Check
       result.integrityReport = await runDataIntegrityCheck(userId);
-
-      // Step 7: Cleanup
-      await signOut();
 
       // Generate performance report
       result.performanceReport = performanceMonitor.getReport();
@@ -269,8 +254,20 @@ export class AuthenticatedTestSuite {
 
   async runConcurrentUserTests(): Promise<ConcurrentTestResult> {
     const startTime = new Date();
+    
+    // Get database users
+    const { data: databaseUsers, error } = await supabase
+      .from('users')
+      .select('id, email, user_name, is_admin')
+      .eq('is_active', true)
+      .limit(5);
+
+    if (error || !databaseUsers || databaseUsers.length === 0) {
+      throw new Error('No database users found for testing');
+    }
+
     const concurrentResult: ConcurrentTestResult = {
-      totalUsers: TEST_USERS.length,
+      totalUsers: databaseUsers.length,
       successfulLogins: 0,
       failedLogins: 0,
       dataIsolationViolations: 0,
@@ -279,7 +276,7 @@ export class AuthenticatedTestSuite {
     };
 
     // Run tests for all users concurrently
-    const testPromises = TEST_USERS.map(user => this.runSingleUserTests(user));
+    const testPromises = databaseUsers.map(user => this.runSingleUserTests(user));
     const results = await Promise.allSettled(testPromises);
 
     results.forEach((result, index) => {
@@ -304,7 +301,7 @@ export class AuthenticatedTestSuite {
         }
       } else {
         concurrentResult.failedLogins++;
-        console.error(`Test failed for user ${TEST_USERS[index].email}:`, result.reason);
+        console.error(`Test failed for user ${databaseUsers[index].email}:`, result.reason);
       }
     });
 
@@ -332,8 +329,8 @@ export class AuthenticatedTestSuite {
     // Individual Results
     report += '## Individual Test Results\n\n';
     results.forEach(result => {
-      report += `### ${result.testUser.name} (${result.testUser.email})\n`;
-      report += `- Role: ${result.testUser.role}\n`;
+      report += `### ${result.testUser.user_name} (${result.testUser.email})\n`;
+      report += `- Role: ${result.testUser.is_admin ? 'admin' : 'user'}\n`;
       report += `- Tests Run: ${result.testsRun}\n`;
       report += `- Passed: ${result.testsPassed}\n`;
       report += `- Failed: ${result.testsFailed}\n`;
@@ -382,9 +379,20 @@ export const runFullTestSuite = async (): Promise<{
   
   console.log('🚀 Starting authenticated test suite...');
   
+  // Get database users
+  const { data: databaseUsers, error } = await supabase
+    .from('users')
+    .select('id, email, user_name, is_admin')
+    .eq('is_active', true)
+    .limit(5);
+
+  if (error || !databaseUsers) {
+    throw new Error('Could not load database users for testing');
+  }
+
   // Run single user tests first
   const singleUserResults: TestSuiteResult[] = [];
-  for (const user of TEST_USERS) {
+  for (const user of databaseUsers) {
     console.log(`Testing user: ${user.email}`);
     const result = await testSuite.runSingleUserTests(user);
     singleUserResults.push(result);

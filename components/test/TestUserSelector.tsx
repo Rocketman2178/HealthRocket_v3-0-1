@@ -9,34 +9,84 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { User, LogIn, LogOut, Shield, Users } from 'lucide-react-native';
-import { TEST_USERS, TestUser } from '@/utils/testUsers';
-import { signIn, signOut, useAuth } from '@/lib/supabase/auth';
+import { supabase } from '@/lib/supabase/client';
+import { signOut, useAuth } from '@/lib/supabase/auth';
+
+interface DatabaseUser {
+  id: string;
+  email: string;
+  user_name: string;
+  is_admin: boolean;
+}
 
 interface TestUserSelectorProps {
-  onUserChange?: (user: TestUser | null) => void;
+  onUserChange?: (user: DatabaseUser | null) => void;
 }
 
 export default function TestUserSelector({ onUserChange }: TestUserSelectorProps) {
   const [loading, setLoading] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<TestUser | null>(null);
+  const [databaseUsers, setDatabaseUsers] = useState<DatabaseUser[]>([]);
+  const [selectedUser, setSelectedUser] = useState<DatabaseUser | null>(null);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const { user } = useAuth();
 
-  const handleLogin = async (testUser: TestUser) => {
-    setLoading(true);
+  // Load users from database on component mount
+  React.useEffect(() => {
+    loadDatabaseUsers();
+  }, []);
+
+  const loadDatabaseUsers = async () => {
+    setLoadingUsers(true);
     try {
-      const result = await signIn(testUser.email, testUser.password);
-      if (result.success) {
-        setSelectedUser(testUser);
-        onUserChange?.(testUser);
-        Alert.alert('Success', `Logged in as ${testUser.name}`);
+      // Note: This will only work if RLS allows viewing other users
+      // You may need to temporarily disable RLS or use a service role key
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('id, email, user_name, is_admin')
+        .eq('is_active', true)
+        .limit(10);
+
+      if (error) {
+        console.error('Error loading users:', error);
+        Alert.alert('Error', 'Could not load users from database. Using current user only.');
+        // If we can't load all users, at least show the current user
+        if (user) {
+          const { data: currentUser, error: currentUserError } = await supabase
+            .from('users')
+            .select('id, email, user_name, is_admin')
+            .eq('id', user.id)
+            .single();
+          
+          if (currentUser && !currentUserError) {
+            setDatabaseUsers([currentUser]);
+          }
+        }
       } else {
-        Alert.alert('Login Failed', result.error || 'Unknown error');
+        setDatabaseUsers(users || []);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to login');
+      console.error('Error loading users:', error);
+      Alert.alert('Error', 'Failed to load users from database');
     } finally {
-      setLoading(false);
+      setLoadingUsers(false);
     }
+  };
+
+  const handleUserSelect = (dbUser: DatabaseUser) => {
+    if (user?.id === dbUser.id) {
+      // User is already logged in as this user
+      setSelectedUser(dbUser);
+      onUserChange?.(dbUser);
+      return;
+    }
+    
+    Alert.alert(
+      'Switch User',
+      `To test as ${dbUser.user_name}, you need to log out and log in with their credentials. This selector shows available users but cannot automatically switch authentication.`,
+      [
+        { text: 'OK', style: 'default' }
+      ]
+    );
   };
 
   const handleLogout = async () => {
@@ -57,10 +107,25 @@ export default function TestUserSelector({ onUserChange }: TestUserSelectorProps
     }
   };
 
+  // Update selected user when auth user changes
+  React.useEffect(() => {
+    const currentDbUser = databaseUsers.find(dbUser => dbUser.id === user?.id);
+    setSelectedUser(currentDbUser || null);
+  }, [user, databaseUsers]);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Test User Selector</Text>
+        <Text style={styles.title}>Database Users</Text>
+        <TouchableOpacity 
+          style={styles.refreshButton} 
+          onPress={loadDatabaseUsers}
+          disabled={loadingUsers}
+        >
+          <Text style={styles.refreshText}>
+            {loadingUsers ? 'Loading...' : 'Refresh'}
+          </Text>
+        </TouchableOpacity>
         {user && (
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <LogOut size={16} color="#FFFFFF" />
@@ -74,30 +139,37 @@ export default function TestUserSelector({ onUserChange }: TestUserSelectorProps
           <User size={20} color="#4ADE80" />
           <View style={styles.currentUserInfo}>
             <Text style={styles.currentUserName}>
-              Current: {selectedUser?.name || 'Unknown User'}
+              Current: {selectedUser?.user_name || 'Unknown User'}
             </Text>
             <Text style={styles.currentUserEmail}>{user.email}</Text>
           </View>
-          {selectedUser?.role === 'admin' && (
+          {selectedUser?.is_admin && (
             <Shield size={16} color="#F59E0B" />
           )}
         </View>
       )}
 
+      {loadingUsers && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color="#FF6B35" />
+          <Text style={styles.loadingText}>Loading users...</Text>
+        </View>
+      )}
+
       <ScrollView style={styles.userList} showsVerticalScrollIndicator={false}>
-        {TEST_USERS.map((testUser) => (
+        {databaseUsers.map((dbUser) => (
           <TouchableOpacity
-            key={testUser.email}
+            key={dbUser.id}
             style={[
               styles.userCard,
-              selectedUser?.email === testUser.email && styles.selectedUserCard,
-              user?.email === testUser.email && styles.activeUserCard,
+              selectedUser?.id === dbUser.id && styles.selectedUserCard,
+              user?.id === dbUser.id && styles.activeUserCard,
             ]}
-            onPress={() => handleLogin(testUser)}
-            disabled={loading || user?.email === testUser.email}
+            onPress={() => handleUserSelect(dbUser)}
+            disabled={loading}
           >
             <View style={styles.userIcon}>
-              {testUser.role === 'admin' ? (
+              {dbUser.is_admin ? (
                 <Shield size={20} color="#F59E0B" />
               ) : (
                 <User size={20} color="#3B82F6" />
@@ -105,25 +177,31 @@ export default function TestUserSelector({ onUserChange }: TestUserSelectorProps
             </View>
             
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{testUser.name}</Text>
-              <Text style={styles.userEmail}>{testUser.email}</Text>
-              <Text style={styles.userRole}>{testUser.role.toUpperCase()}</Text>
+              <Text style={styles.userName}>{dbUser.user_name}</Text>
+              <Text style={styles.userEmail}>{dbUser.email}</Text>
+              <Text style={styles.userRole}>{dbUser.is_admin ? 'ADMIN' : 'USER'}</Text>
             </View>
 
             <View style={styles.userActions}>
-              {user?.email === testUser.email ? (
+              {user?.id === dbUser.id ? (
                 <View style={styles.activeBadge}>
                   <Text style={styles.activeText}>ACTIVE</Text>
                 </View>
               ) : (
-                <View style={styles.loginIcon}>
-                  <LogIn size={16} color="#94A3B8" />
+                <View style={styles.selectIcon}>
+                  <Text style={styles.selectText}>VIEW</Text>
                 </View>
               )}
             </View>
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {databaseUsers.length === 0 && !loadingUsers && (
+        <Text style={styles.noUsersText}>
+          No users found. Make sure you have users in your database.
+        </Text>
+      )}
 
       {loading && (
         <View style={styles.loadingOverlay}>
@@ -154,6 +232,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#F8FAFC',
+  },
+  refreshButton: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  refreshText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -192,6 +282,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#4ADE80',
     opacity: 0.8,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  loadingText: {
+    color: '#94A3B8',
+    marginLeft: 8,
   },
   userList: {
     maxHeight: 300,
@@ -256,8 +356,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
-  loginIcon: {
+  selectIcon: {
+    backgroundColor: '#475569',
+    paddingHorizontal: 8,
     padding: 4,
+    borderRadius: 12,
+  },
+  selectText: {
+    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '600',
   },
   loadingOverlay: {
     position: 'absolute',
@@ -274,5 +382,11 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
     fontSize: 14,
     marginTop: 8,
+  },
+  noUsersText: {
+    color: '#94A3B8',
+    textAlign: 'center',
+    padding: 20,
+    fontStyle: 'italic',
   },
 });
