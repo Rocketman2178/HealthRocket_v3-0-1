@@ -28,6 +28,7 @@ import { TestUser } from '@/utils/testUsers';
 import { useAuth } from '@/lib/supabase/auth';
 import { supabase } from '@/lib/supabase/client';
 import { runFullTestSuite } from '@/test/AuthenticatedTestSuite';
+import SimpleTestRunner from '@/components/test/SimpleTestRunner';
 
 interface FunctionalTest {
   id: string;
@@ -335,6 +336,9 @@ export default function TestingDashboard() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Test User Selector */}
         <TestUserSelector onUserChange={setCurrentTestUser} />
+
+        {/* Simple Test Runner - Works without authentication */}
+        <SimpleTestRunner />
 
         {/* Database Tests */}
         <DatabaseTest />
