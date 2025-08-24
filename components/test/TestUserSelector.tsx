@@ -37,56 +37,81 @@ export default function TestUserSelector({ onUserChange }: TestUserSelectorProps
 
   const loadDatabaseUsers = async () => {
     setLoadingUsers(true);
+    console.log('🔍 Starting to load database users...');
+    
     try {
       // First try to get all users (may be restricted by RLS)
+      console.log('📊 Attempting direct users table query...');
       const { data: users, error } = await supabase
         .from('users')
         .select('id, email, user_name, is_admin')
         .eq('is_active', true)
         .limit(10);
 
+      console.log('📊 Direct query result:', { users, error });
+
       if (error) {
-        console.log('RLS restricting user access, trying alternative approach...');
+        console.log('❌ RLS restricting user access, trying RPC approach...', error);
         
         // Try using RPC function to get users (bypasses RLS if function allows it)
+        console.log('🔧 Attempting RPC function call...');
         const { data: rpcUsers, error: rpcError } = await supabase
           .rpc('get_test_users');
         
+        console.log('🔧 RPC result:', { rpcUsers, rpcError });
+        
         if (rpcError || !rpcUsers) {
-          console.log('RPC approach failed, using current user only');
+          console.log('❌ RPC approach failed, using current user only', rpcError);
           // Fallback: show only current user
           if (user) {
+            console.log('👤 Fetching current user data...', user.id);
             const { data: currentUser, error: currentUserError } = await supabase
               .from('users')
               .select('id, email, user_name, is_admin')
               .eq('id', user.id)
               .single();
             
+            console.log('👤 Current user result:', { currentUser, currentUserError });
+            
             if (currentUser && !currentUserError) {
+              console.log('✅ Setting current user as only available user');
               setDatabaseUsers([currentUser]);
+            } else {
+              console.log('❌ Failed to get current user data');
             }
+          } else {
+            console.log('❌ No authenticated user available');
           }
         } else {
+          console.log('✅ RPC approach succeeded, setting users');
           setDatabaseUsers(rpcUsers);
         }
       } else {
+        console.log('✅ Direct query succeeded, setting users');
         setDatabaseUsers(users || []);
       }
     } catch (error) {
-      console.error('Error loading users:', error);
+      console.error('💥 Unexpected error loading users:', error);
       // Don't show alert, just log the error and show current user
       if (user) {
+        console.log('🔄 Fallback: trying to get current user after error...');
         const { data: currentUser, error: currentUserError } = await supabase
           .from('users')
           .select('id, email, user_name, is_admin')
           .eq('id', user.id)
           .single();
         
+        console.log('🔄 Fallback current user result:', { currentUser, currentUserError });
+        
         if (currentUser && !currentUserError) {
+          console.log('✅ Fallback succeeded');
           setDatabaseUsers([currentUser]);
+        } else {
+          console.log('❌ Fallback failed');
         }
       }
     } finally {
+      console.log('🏁 Finished loading users');
       setLoadingUsers(false);
     }
   };
@@ -217,9 +242,17 @@ export default function TestUserSelector({ onUserChange }: TestUserSelectorProps
       </ScrollView>
 
       {databaseUsers.length === 0 && !loadingUsers && (
-        <Text style={styles.noUsersText}>
-          No users found. Make sure you have users in your database.
-        </Text>
+        <View style={styles.debugContainer}>
+          <Text style={styles.noUsersText}>
+            No users found. Make sure you have users in your database.
+          </Text>
+          <Text style={styles.debugText}>
+            Debug: Check browser console for detailed logs
+          </Text>
+          <Text style={styles.debugText}>
+            Current user: {user ? user.email : 'Not authenticated'}
+          </Text>
+        </View>
       )}
 
       {loading && (
@@ -405,7 +438,19 @@ const styles = StyleSheet.create({
   noUsersText: {
     color: '#94A3B8',
     textAlign: 'center',
-    padding: 20,
+    padding: 16,
     fontStyle: 'italic',
+  },
+  debugContainer: {
+    padding: 16,
+    backgroundColor: '#334155',
+    borderRadius: 8,
+    margin: 8,
+  },
+  debugText: {
+    color: '#64748B',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
   },
 });
