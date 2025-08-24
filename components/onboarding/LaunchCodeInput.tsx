@@ -6,7 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { CheckCircle, AlertCircle, Info, Users, Crown } from 'lucide-react-native';
+import { CircleCheck as CheckCircle, CircleAlert as AlertCircle, Info, Users, Crown } from 'lucide-react-native';
 import { validateLaunchCode } from '../../utils/launchCodeValidator';
 
 interface LaunchCodeInputProps {
