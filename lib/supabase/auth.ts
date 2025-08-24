@@ -1,4 +1,3 @@
-import React from 'react'
 import { supabase } from './client'
 
 export interface AuthResponse {
@@ -189,38 +188,4 @@ export async function resetPassword(email: string): Promise<AuthResponse> {
 export async function getCurrentUser() {
   const { data: { user }, error } = await supabase.auth.getUser()
   return { user, error }
-}
-
-// Auth hook for React components
-export function useAuth() {
-  const [user, setUser] = React.useState<any>(null)
-  const [loading, setLoading] = React.useState(true)
-  const isMountedRef = React.useRef(true)
-
-  React.useEffect(() => {
-    isMountedRef.current = true
-    
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (isMountedRef.current) {
-        setUser(session?.user ?? null)
-        setLoading(false)
-      }
-    })
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (isMountedRef.current) {
-        setUser(session?.user ?? null)
-        setLoading(false)
-      }
-    })
-
-    return () => {
-      isMountedRef.current = false
-      subscription.unsubscribe()
-    }
-  }, [])
-
-  return { user, loading }
 }
