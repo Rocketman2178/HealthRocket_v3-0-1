@@ -29,6 +29,7 @@ import { useAuth } from '@/lib/supabase/auth';
 import { supabase } from '@/lib/supabase/client';
 import { runFullTestSuite } from '@/test/AuthenticatedTestSuite';
 import SimpleTestRunner from '@/components/test/SimpleTestRunner';
+import QuickLoginForm from '@/components/test/QuickLoginForm';
 
 interface FunctionalTest {
   id: string;
@@ -334,8 +335,11 @@ export default function TestingDashboard() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Test User Selector */}
-        <TestUserSelector onUserChange={setCurrentTestUser} />
+        {/* Quick Login Form - Only show if not authenticated */}
+        {!user && <QuickLoginForm />}
+        
+        {/* Test User Selector - Only show if authenticated */}
+        {user && <TestUserSelector onUserChange={setCurrentTestUser} />}
 
         {/* Simple Test Runner - Works without authentication */}
         <SimpleTestRunner />
@@ -365,9 +369,11 @@ export default function TestingDashboard() {
           <TouchableOpacity
             style={[styles.runAllTestsButton, !user && styles.runAllButtonDisabled]}
             onPress={runFullTestSuite}
-            disabled={!user}
+            disabled={false}
           >
-            <Text style={styles.runAllTestsButtonText}>Run Complete Test Suite</Text>
+            <Text style={styles.runAllTestsButtonText}>
+              Run Complete Test Suite {!user && '(Limited)'}
+            </Text>
           </TouchableOpacity>
 
           {functionalTests.map((test) => {
@@ -377,7 +383,7 @@ export default function TestingDashboard() {
                 key={test.id}
                 style={styles.testCard}
                 onPress={() => runFunctionalTest(test)}
-                disabled={!user || test.status === 'running'}
+                disabled={test.status === 'running'}
               >
                 <View style={styles.testCardHeader}>
                   <View style={styles.testCardIcon}>

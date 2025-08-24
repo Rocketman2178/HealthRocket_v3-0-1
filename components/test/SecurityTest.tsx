@@ -93,14 +93,25 @@ export default function SecurityTest() {
   };
 
   const runSecurityTests = async () => {
-    if (!user) {
-      Alert.alert('Error', 'Please login with a test user first');
-      return;
-    }
-
     setIsRunning(true);
 
     try {
+      if (!user) {
+        // Run limited security tests without authentication
+        await testPublicDataAccess();
+        await testLaunchCodeSecurity();
+        await testBoostCodeSecurity();
+        
+        // Mark other tests as skipped
+        updateTestStatus('user-data-isolation', 'error', 'Skipped - requires authentication');
+        updateTestStatus('cross-user-access', 'error', 'Skipped - requires authentication');
+        updateTestStatus('admin-privileges', 'error', 'Skipped - requires authentication');
+        updateTestStatus('contest-verification', 'error', 'Skipped - requires authentication');
+        updateTestStatus('fp-manipulation', 'error', 'Skipped - requires authentication');
+        updateTestStatus('chat-message-security', 'error', 'Skipped - requires authentication');
+        return;
+      }
+
       // Test 1: User Data Isolation
       await testUserDataIsolation();
       
@@ -129,6 +140,26 @@ export default function SecurityTest() {
       console.error('Security test suite error:', error);
     } finally {
       setIsRunning(false);
+    }
+  };
+
+  const testPublicDataAccess = async () => {
+    updateTestStatus('user-data-isolation', 'running');
+    
+    try {
+      // Test that public tables are accessible
+      const { data: challenges, error: challengeError } = await supabase
+        .from('challenge_library')
+        .select('*')
+        .limit(1);
+
+      if (challengeError) {
+        updateTestStatus('user-data-isolation', 'error', `Public data access failed: ${challengeError.message}`);
+      } else {
+        updateTestStatus('user-data-isolation', 'success', 'Public data access verified');
+      }
+    } catch (error) {
+      updateTestStatus('user-data-isolation', 'error', 'Public data access test failed');
     }
   };
 

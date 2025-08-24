@@ -104,15 +104,20 @@ export default function UserJourneyTest() {
     try {
       // Step 1: User Registration
       updateStepStatus('registration', 'running');
-      const testEmail = `journey-test-${Date.now()}@healthrocket.app`;
+      const testEmail = `journey-test-${Date.now()}@example.com`;
       const testPassword = 'JourneyTest123!';
       const testName = 'Journey Test User';
       
-      const signUpResult = await signUp(testEmail, testPassword, testName, 'BETA2024');
+      // Try to sign up without launch code first
+      const signUpResult = await signUp(testEmail, testPassword, testName);
       
       if (!signUpResult.success) {
-        updateStepStatus('registration', 'error', signUpResult.error);
-        return;
+        // If signup fails, try with a common launch code
+        const signUpWithCodeResult = await signUp(testEmail, testPassword, testName, 'BETA2024');
+        if (!signUpWithCodeResult.success) {
+          updateStepStatus('registration', 'error', signUpWithCodeResult.error || 'Registration failed');
+          return;
+        }
       }
       
       const newUserId = signUpResult.data?.user?.id;
