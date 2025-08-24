@@ -104,7 +104,7 @@ export default function UserJourneyTest() {
     try {
       // Step 1: User Registration
       updateStepStatus('registration', 'running');
-      const testEmail = `journey-test-${Date.now()}@example.com`;
+      const testEmail = `journey-test-${Math.random().toString(36).substring(2, 8)}@example.com`;
       const testPassword = 'JourneyTest123!';
       const testName = 'Journey Test User';
       
