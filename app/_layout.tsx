@@ -2,6 +2,12 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
+
+// Import platform polyfill for web
+if (Platform.OS === 'web') {
+  require('../lib/platform-polyfill.web');
+}
+
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import TestingModeProvider from '../components/test/TestingModeProvider';
 import { AuthProvider } from '../hooks/useAuth';
