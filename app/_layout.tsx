@@ -1,13 +1,6 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Platform } from 'react-native';
-
-// Import platform polyfill for web
-if (Platform.OS === 'web') {
-  require('../lib/platform-polyfill.web');
-}
-
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import TestingModeProvider from '../components/test/TestingModeProvider';
 import { AuthProvider } from '../hooks/useAuth';
@@ -49,18 +42,6 @@ function AppContent() {
 
 export default function RootLayout() {
   useFrameworkReady();
-
-  // Web-specific setup
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      // Ensure web compatibility
-      const initializeWeb = () => {
-        // Any web-specific initialization can go here
-        console.log('Web platform initialized');
-      };
-      initializeWeb();
-    }
-  }, []);
 
   return (
     <AuthProvider>
