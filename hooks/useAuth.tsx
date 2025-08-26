@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -60,6 +61,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (!existingProfile) {
+        // Get timezone safely across platforms
+        let timezone = 'UTC';
+        try {
+          if (Platform.OS === 'web' && typeof Intl !== 'undefined') {
+            timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          } else if (Platform.OS !== 'web') {
+            // For mobile, you might want to use a library like react-native-localize
+            timezone = 'UTC'; // Default fallback
+          }
+        } catch (error) {
+          timezone = 'UTC';
+        }
+
         // Create user profile if it doesn't exist
         const { error } = await supabase
           .from('users')
@@ -79,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             plan_status: 'Trial',
             contest_credits: 2,
             biometric_enabled: false,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            timezone: timezone,
             notification_preferences: {
               sms: false,
               push: true,
@@ -200,8 +214,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetPassword = async (email: string): Promise<AuthResult> => {
     try {
+      // Get redirect URL safely across platforms
+      let redirectTo = 'healthrocket://reset-password'; // Mobile deep link
+      
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        redirectTo = `${window.location.origin}/reset-password`;
+      }
+
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo,
       });
 
       if (error) {
